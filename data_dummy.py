@@ -46,11 +46,9 @@ def create_dummy_jobs():
             (position_name, date.strftime('%Y-%m-%d'), required_degree, experience)
         )
     
-    # Valider les changements et fermer la connexion
     connection.commit()
     cursor.close()
     connection.close()
-    print("100 enregistrements factices ont été créés avec succès.")
 
 # Exécution de la fonction si le script est lancé
 if __name__ == "__main__":
