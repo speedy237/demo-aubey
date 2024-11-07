@@ -27,41 +27,85 @@ def create_connection():
     return connection
 
 # Récupérer les offres d'emploi depuis MySQL
-def fetch_jobs():
+def get_jobs():
     connection = create_connection()
-    query = "SELECT * FROM application"
-    df = pd.read_sql(query, connection)
+    query = "SELECT reference, name FROM job"
+    jobs = pd.read_sql(query, connection)
     connection.close()
-    return df
+    return jobs
 
-# Filtrer les offres d'emploi par date
-def filter_jobs_by_date(start_date, end_date):
+# Récupérer les informations d'un job spécifique
+def get_job_info(reference):
+    connection = create_connection()
+    query = "SELECT * FROM job WHERE reference = %s"
+    job_info = pd.read_sql(query, connection, params=(reference,))
+    connection.close()
+    return job_info
+# Filtrer les applications pour un job spécifique et une plage de dates, et trier par score décroissant
+def filter_applications(reference, start_date, end_date):
     connection = create_connection()
     query = """
         SELECT * FROM application 
-        WHERE date BETWEEN %s AND %s
+        WHERE reference = %s AND date BETWEEN %s AND %s
+        ORDER BY score DESC
     """
-    df = pd.read_sql(query, connection, params=(start_date, end_date))
+    applications = pd.read_sql(query, connection, params=(reference, start_date, end_date))
     connection.close()
-    return df
+    return applications
 
-# Streamlit interface
+# Fonction pour appliquer un dégradé de couleur rouge-vert en fonction du score
+def apply_score_color(score):
+    if score >= 50:
+        # Interpoler le vert pour les scores entre 50 et 100
+        green_intensity = int(255 * (score - 50) / 50)  # Plus le score est élevé, plus c'est vert
+        return f"background-color: rgb(0, {green_intensity}, 0); color: white;"
+    else:
+        # Interpoler le rouge pour les scores entre 0 et 50
+        red_intensity = int(255 * (50 - score) / 50)  # Plus le score est faible, plus c'est rouge
+        return f"background-color: rgb({red_intensity}, 0, 0); color: white;"
+
 def main():
     st.title("Job Application Interface")
 
-    # Date filter section
-    st.subheader("Filter Jobs by Date")
-    col1, col2 = st.columns(2)
-    with col1:
-        start_date = st.date_input("Begin Date", datetime.now())
-    with col2:
-        end_date = st.date_input("End Date", datetime.now())
+    # Récupérer et afficher la liste des jobs dans un combo-box
+    jobs = get_jobs()
+    job_selection = st.selectbox(
+        "Sélectionnez un job",
+        options=jobs["reference"] + " - " + jobs["name"],
+        index=0
+    )
 
-    # Fetch and filter job listings
-    if st.button("Filter"):
-        filtered_jobs = filter_jobs_by_date(start_date, end_date)
-        st.write("Filtered Job Listings")
-        st.dataframe(filtered_jobs)
-   
+    # Extraire la référence du job sélectionné
+    selected_reference = job_selection.split(" - ")[0]
+
+    # Afficher les informations du job sélectionné
+    st.subheader("Informations du job")
+    job_info = get_job_info(selected_reference)
+    st.write(job_info)
+
+    # Sélection de la plage de dates
+    st.subheader("Filtrer les candidatures")
+    start_date = st.date_input("Date de début", datetime.now())
+    end_date = st.date_input("Date de fin", datetime.now())
+
+    # Filtrer et afficher les candidatures
+    if st.button("Filtrer les candidatures"):
+        applications = filter_applications(selected_reference, start_date, end_date)
+        
+        # Supprimer la colonne 'reference' du DataFrame
+        if "reference" in applications.columns:
+            applications = applications.drop(columns=["reference"])
+
+        # Appliquer le style de dégradé rouge-vert sur la colonne 'score'
+        if not applications.empty:
+            st.subheader("Candidatures filtrées")
+            styled_applications = applications.style.applymap(
+                lambda score: apply_score_color(score) if isinstance(score, (int, float)) else "", 
+                subset=["score"]
+            )
+            st.dataframe(styled_applications)
+        else:
+            st.write("Aucune candidature trouvée pour ce filtre.")
+
 if __name__ == "__main__":
     main()
