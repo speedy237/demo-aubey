@@ -108,11 +108,44 @@ def create_applications_for_jobs(job_references):
     connection.close()
     print("Insertion des applications terminée avec succès.")
 
+
+import random
+
+def dummy_score_applications():
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    # Obtenir tous les ApplicationIDs de la table jobapplications
+    cursor.execute("SELECT ID FROM jobapplications")
+    application_ids = cursor.fetchall()
+
+    # Remplir la table scores avec des valeurs aléatoires pour chaque application
+    for (application_id,) in application_ids:
+        experience = round(random.uniform(0, 100), 2)
+        degree = round(random.uniform(0, 100), 2)
+        hardskills = round(random.uniform(0, 100), 2)
+        softskills = round(random.uniform(0, 100), 2)
+
+        # Insertion dans la table scores
+        cursor.execute(
+            """
+            INSERT INTO scores (ApplicationID, Experience, Degree, HardSkills, SoftSkills)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (application_id, experience, degree, hardskills, softskills)
+        )
+
+    connection.commit()
+    cursor.close()
+    connection.close()
+
+
 # Exécuter les fonctions pour créer les enregistrements
 if __name__ == "__main__":
     # Sélectionner 10 offres au hasard
-    job_references = get_random_jobs()
-    print(f"10 offres sélectionnées : {job_references}")
+    #job_references = get_random_jobs()
+    #print(f"10 offres sélectionnées : {job_references}")
 
     # Créer 10 applications pour chaque offre sélectionnée
-    create_applications_for_jobs(job_references)
+    #create_applications_for_jobs(job_references)
+    dummy_score_applications()
